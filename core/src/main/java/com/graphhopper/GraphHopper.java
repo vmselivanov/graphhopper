@@ -963,10 +963,24 @@ public class GraphHopper implements GraphHopperAPI
                 algorithm(algoStr).traversalMode(tMode).flagEncoder(encoder).weighting(weighting).
                 build();
 
+        EdgeIteratorState incomingEdge = null;
+        Long originalEdgeFlags = null;
+        
         for (int placeIndex = 1; placeIndex < points.size(); placeIndex++)
         {
             QueryResult toQResult = qResults.get(placeIndex);
             sw = new StopWatch().start();
+            
+            boolean noViaTurn = true;
+            int numPaths = paths.size();
+            if (noViaTurn && numPaths>0)
+            {
+                incomingEdge = paths.get(numPaths-1).getFinalEdge();
+                originalEdgeFlags = incomingEdge.getFlags();
+                Long newFlags = encoder.setAccess(originalEdgeFlags, false, false);
+                incomingEdge.setFlags(newFlags);
+            }
+
             RoutingAlgorithm algo = tmpAlgoFactory.createAlgo(queryGraph, algoOpts);
             algo.setWeightLimit(weightLimit);
             debug += ", algoInit:" + sw.stop().getSeconds() + "s";
@@ -978,9 +992,17 @@ public class GraphHopper implements GraphHopperAPI
 
             paths.add(path);
             debug += ", " + algo.getName() + "-routing:" + sw.stop().getSeconds() + "s, " + path.getDebugInfo();
+            
+            // for path extraction reset QueryGraph
+            if (noViaTurn && numPaths>0)
+            {
+                incomingEdge.setFlags(originalEdgeFlags);
+            }
+
 
             visitedSum.addAndGet(algo.getVisitedNodes());
-            fromQResult = toQResult;
+            fromQResult = toQResult;       
+
         }
 
         if (rsp.hasErrors())
