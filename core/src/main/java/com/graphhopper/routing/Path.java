@@ -200,7 +200,7 @@ public class Path
      */
     public EdgeIteratorState getFinalEdge()
     {
-        return graph.getEdgeProps(edgeEntry.edge, edgeEntry.adjNode);
+        return graph.getEdgeProps(edgeIds.get(edgeIds.size() - 1), endNode);
     }
 
     /**

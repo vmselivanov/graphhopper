@@ -839,7 +839,10 @@ public class GraphHopper implements GraphHopperAPI
                 result = new PriorityWeighting(encoder);
             else
                 result = new FastestWeighting(encoder);
-        } else
+        } else if ("fastestStopoverDelay".equalsIgnoreCase(weighting))
+        {
+            result = new FastestStopoverDelayWeighting(encoder, weightingMap.getLong("turnDelay", 300));
+        } else 
         {
             throw new UnsupportedOperationException("weighting " + weighting + " not supported");
         }
@@ -963,7 +966,8 @@ public class GraphHopper implements GraphHopperAPI
                 algorithm(algoStr).traversalMode(tMode).flagEncoder(encoder).weighting(weighting).
                 build();
 
-        EdgeIteratorState incomingEdge = null;
+        EdgeIteratorState reverseVirtualEdge = null;
+        EdgeIteratorState incomingVirtualEdge = null;
         Long originalEdgeFlags = null;
         
         for (int placeIndex = 1; placeIndex < points.size(); placeIndex++)
@@ -972,13 +976,17 @@ public class GraphHopper implements GraphHopperAPI
             sw = new StopWatch().start();
             
             boolean noViaTurn = true;
+            // avoid doing a UTurn at via-stops
             int numPaths = paths.size();
             if (noViaTurn && numPaths>0)
             {
-                incomingEdge = paths.get(numPaths-1).getFinalEdge();
-                originalEdgeFlags = incomingEdge.getFlags();
-                Long newFlags = encoder.setAccess(originalEdgeFlags, false, false);
-                incomingEdge.setFlags(newFlags);
+                incomingVirtualEdge = paths.get(numPaths-1).getFinalEdge();
+                // as virtual Edges are unidirectional, we have to fetch the opposing edge here
+                reverseVirtualEdge = queryGraph.getEdgeProps(incomingVirtualEdge.getEdge(), incomingVirtualEdge.getBaseNode());
+                originalEdgeFlags = incomingVirtualEdge.getFlags();
+                // penalize going back after via turn
+                reverseVirtualEdge.setFlags(encoder.setBool(originalEdgeFlags, CarStopoverFlagEncoder.K_STOPOVERTURN ,true));
+                incomingVirtualEdge.setFlags(encoder.setBool(originalEdgeFlags, CarStopoverFlagEncoder.K_STOPOVERTURN ,true));
             }
 
             RoutingAlgorithm algo = tmpAlgoFactory.createAlgo(queryGraph, algoOpts);
@@ -993,16 +1001,16 @@ public class GraphHopper implements GraphHopperAPI
             paths.add(path);
             debug += ", " + algo.getName() + "-routing:" + sw.stop().getSeconds() + "s, " + path.getDebugInfo();
             
-            // for path extraction reset QueryGraph
+            // for path extraction reset QueryGraph to original state
             if (noViaTurn && numPaths>0)
             {
-                incomingEdge.setFlags(originalEdgeFlags);
-            }
+                reverseVirtualEdge.setFlags(originalEdgeFlags);
+                incomingVirtualEdge.setFlags(originalEdgeFlags);
 
+            }
 
             visitedSum.addAndGet(algo.getVisitedNodes());
             fromQResult = toQResult;       
-
         }
 
         if (rsp.hasErrors())

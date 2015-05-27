@@ -472,8 +472,10 @@ public class QueryGraph implements Graph
         int edgeId = origEdgeId - mainEdges;
         EdgeIteratorState eis = virtualEdges.get(edgeId);
         if (eis.getAdjNode() == adjNode || adjNode == Integer.MIN_VALUE)
+        {
             return eis;
-
+        }
+        
         // find reverse edge via convention. see virtualEdges comment above
         if (edgeId % 2 == 0)
             edgeId++;
@@ -481,7 +483,9 @@ public class QueryGraph implements Graph
             edgeId--;
         EdgeIteratorState eis2 = virtualEdges.get(edgeId);
         if (eis2.getAdjNode() == adjNode)
+        {
             return eis2;
+        }
         throw new IllegalStateException("Edge " + origEdgeId + " not found with adjNode:" + adjNode
                 + ". found edges were:" + eis + ", " + eis2);
     }
@@ -580,7 +584,9 @@ public class QueryGraph implements Graph
                 ? virtualEdges.get(virtNode * 4 + VE_BASE)
                 : virtualEdges.get(virtNode * 4 + VE_ADJ_REV);
         if (filter.accept(edge))
+        {
             existingIter.add(edge);
+        }
     }
 
     void fillVirtualEdges( TIntObjectMap<VirtualEdgeIterator> node2Edge, int towerNode, EdgeExplorer mainExpl )
@@ -600,7 +606,9 @@ public class QueryGraph implements Graph
         while (iter.next())
         {
             if (!ignoreEdges.contains(iter.getEdge()))
+            {
                 vIter.add(iter.detach(false));
+            }
         }
     }
 

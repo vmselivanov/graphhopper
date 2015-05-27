@@ -42,6 +42,7 @@ import java.util.*;
 public class EncodingManager
 {
     public static final String CAR = "car";
+    public static final String CARSTOPOVER = "carstopover";
     public static final String BIKE = "bike";
     public static final String BIKE2 = "bike2";
     public static final String RACINGBIKE = "racingbike";
@@ -140,7 +141,10 @@ public class EncodingManager
             AbstractFlagEncoder fe;
             if (entry.equals(CAR))
                 fe = new CarFlagEncoder(configuration);
-
+            
+            else if (entry.equals(CARSTOPOVER))
+                fe = new CarStopoverFlagEncoder(configuration);
+                
             else if (entry.equals(BIKE))
                 fe = new BikeFlagEncoder(configuration);
 
