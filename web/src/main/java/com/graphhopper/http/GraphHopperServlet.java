@@ -78,6 +78,7 @@ public class GraphHopperServlet extends GHBaseServlet
         String weighting = getParam(httpReq, "weighting", "fastest");
         String algoStr = getParam(httpReq, "algorithm", "");
         String localeStr = getParam(httpReq, "locale", "en");
+        List<Double> preferredDirections = getDoubleParamList(httpReq, "direction");
 
         StopWatch sw = new StopWatch().start();
         GHResponse ghRsp;
@@ -91,6 +92,18 @@ public class GraphHopperServlet extends GHBaseServlet
         {
             FlagEncoder algoVehicle = hopper.getEncodingManager().getEncoder(vehicleStr);
             GHRequest request = new GHRequest(infoPoints);
+            
+            if (preferredDirections.size()>0) 
+            {
+                // if only one preferred directions is specified take as start dir
+                if (preferredDirections.size() ==1) 
+                {
+                    request.setPreferredDirection(preferredDirections.get(0), 0);
+                } else
+                {
+                    request.setPreferredDirections(preferredDirections);
+                }            
+            }
 
             initHints(request, httpReq.getParameterMap());
             request.setVehicle(algoVehicle.toString()).

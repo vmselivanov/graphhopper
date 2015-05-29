@@ -87,7 +87,8 @@ public class GraphHopper implements GraphHopperAPI
     private double osmReaderWayPointMaxDistance = 1;
     private int workerThreads = -1;
     private boolean calcPoints = true;
-    // utils    
+    // utils
+    private static final AngleCalc ac = new AngleCalc();
     private final TranslationMap trMap = new TranslationMap().doImport();
     private ElevationProvider eleProvider = ElevationProvider.NOOP;
     private final AtomicLong visitedSum = new AtomicLong(0);
@@ -969,13 +970,22 @@ public class GraphHopper implements GraphHopperAPI
         EdgeIteratorState reverseVirtualEdge = null;
         EdgeIteratorState incomingVirtualEdge = null;
         Long originalEdgeFlags = null;
-        
+
         for (int placeIndex = 1; placeIndex < points.size(); placeIndex++)
         {
-            QueryResult toQResult = qResults.get(placeIndex);
-            sw = new StopWatch().start();
+
+            if (placeIndex == 1) // enforce start direction 
+            {
+                queryGraph.enforceDirection(request.getPreferredDirection(0),fromQResult, false, encoder);
+            }               
             
-            boolean noViaTurn = true;
+            QueryResult toQResult = qResults.get(placeIndex);
+            // enforce end direction
+            queryGraph.enforceDirection(request.getPreferredDirection(placeIndex),toQResult, true, encoder);
+            
+            sw = new StopWatch().start();
+
+            boolean noViaTurn = false;
             // avoid doing a UTurn at via-stops
             int numPaths = paths.size();
             if (noViaTurn && numPaths>0)
@@ -1007,6 +1017,17 @@ public class GraphHopper implements GraphHopperAPI
                 reverseVirtualEdge.setFlags(originalEdgeFlags);
                 incomingVirtualEdge.setFlags(originalEdgeFlags);
 
+            }
+
+            // remove the start direction enforcement
+            if (placeIndex == 1  && !Double.isNaN(request.getPreferredDirection(0))) 
+            {
+                queryGraph.dropDirectionEnforcement(fromQResult, encoder);
+            }
+            // remove the end direction enforcement
+            if (!Double.isNaN(request.getPreferredDirection(placeIndex)))
+            {
+                queryGraph.dropDirectionEnforcement(toQResult, encoder);
             }
 
             visitedSum.addAndGet(algo.getVisitedNodes());

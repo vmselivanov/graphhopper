@@ -17,6 +17,7 @@
  */
 package com.graphhopper.util;
 
+import static java.lang.Math.PI;
 import static java.lang.Math.cos;
 import static java.lang.Math.toRadians;
 
@@ -63,6 +64,18 @@ public class AngleCalc
     {
         double shrinkFactor = cos(toRadians((lat1 + lat2) / 2));
         return Math.atan2((lat2 - lat1), shrinkFactor * (lon2 - lon1));
+    }
+
+    /**
+     * convert north based clockwise azimuth (0,2Pi) into x-axis/east based angle (-Pi, Pi)
+     */
+    public double convertAzimuth2xaxisAngle(double azimuth)
+    {
+        if (Double.compare(azimuth, 2*Math.PI)>0 || Double.compare(azimuth, 0)<0)
+        {
+            throw new IllegalArgumentException("Azimuth " + azimuth + " must be in (0,2Pi)");
+        }
+        return Math.PI/2 - azimuth;
     }
 
     /**

@@ -21,9 +21,7 @@ import com.graphhopper.routing.util.WeightingMap;
 import com.graphhopper.util.Helper;
 import com.graphhopper.util.shapes.GHPoint;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
+import java.util.*;
 
 /**
  * GraphHopper request wrapper to simplify requesting GraphHopper.
@@ -40,6 +38,10 @@ public class GHRequest
     private boolean possibleToAdd = false;
     private Locale locale = Locale.US;
 
+    // List of preferred start (1st element) and arrival directions (all other). 
+    // Directions are north based azimuth (clockwise) in (0,2pi) or NaN for equal preference
+    private List<Double> preferredDirections;
+
     public GHRequest()
     {
         this(5);
@@ -48,6 +50,7 @@ public class GHRequest
     public GHRequest( int size )
     {
         points = new ArrayList<GHPoint>(size);
+        initDirectionsList(size);
         possibleToAdd = true;
     }
 
@@ -72,14 +75,17 @@ public class GHRequest
         points = new ArrayList<GHPoint>(2);
         points.add(startPlace);
         points.add(endPlace);
+        
+        initDirectionsList(2);
     }
 
     public GHRequest( List<GHPoint> points )
     {
         this.points = points;
+        initDirectionsList(points.size());
     }
 
-    public GHRequest addPoint( GHPoint point )
+    public GHRequest addPoint( GHPoint point , Double preferredDirection)
     {
         if (point == null)
             throw new IllegalArgumentException("point cannot be null");
@@ -88,9 +94,87 @@ public class GHRequest
                     + "more than two places via addPlace method.");
 
         points.add(point);
+        preferredDirections.add(preferredDirection);
         return this;
     }
 
+    public GHRequest addPoint( GHPoint point)
+    {
+        addPoint(point, Double.NaN);
+        return this;
+    }
+
+    /**
+     * initialize directions list with non-preferred directions
+     */
+    private void initDirectionsList( int size )
+    {
+        preferredDirections = new ArrayList<Double>(Collections.nCopies(size, Double.NaN));
+    }
+
+    /**
+     * Sets preferred directions for starting (start point) and ending (via and end points)
+     * Directions are north based azimuth (clockwise) in (0,2pi) or NaN for equal preference
+     */
+    public GHRequest setPreferredDirections(List<Double> directions)
+    {
+      if (points.size() != directions.size())
+      {
+          throw new IllegalArgumentException("Size of directions (" + directions.size() + 
+                  ") must match size of points (" + points.size() + ")"); 
+      }
+      for (Double direction : directions)
+      {
+          validateAzimuthValue(direction);
+      }
+      this.preferredDirections = directions;
+      return this;
+    }
+
+    /**
+     * Sets preferred direction for a specific point of the request
+     * @param direction north based azimuth (clockwise) in (0,2pi) or NaN for equal preference
+     * @param position point for which direction is set. Starts with 0 for the start point  
+     */
+    public GHRequest setPreferredDirection(Double direction, int position)
+    {
+        validateAzimuthValue(direction);
+        if (position >= preferredDirections.size() || -position > preferredDirections.size())
+        {
+            throw new IllegalArgumentException("Position " + position + "out of range for " + points.size() + " points");
+        }
+        preferredDirections.set(position, direction);
+        return this;
+    }
+    
+    /**
+    * @return north based azimuth (clockwise) in (0,2pi) or NaN for equal preference
+    */
+    public double getPreferredDirection( int i )
+    {
+        return preferredDirections.get(i);
+    }
+
+    /**
+     * @return if there exist a preferred direction for any start/via/end point
+     */
+    public boolean hasPreferredDirection()
+    {
+        return !Double.isNaN(Collections.min(preferredDirections));        
+    }
+    
+    // validate Azimuth entry
+    private void validateAzimuthValue( Double direction )
+    {
+        // direction must be in (0, 2Pi) oder Nan
+        if (!Double.isNaN(direction) && 
+                (Double.compare(direction,(2* Math.PI)) > 0) 
+                || (Double.compare(direction, 0) < 0))
+        {
+            throw new IllegalArgumentException("Direction " + direction + " must be in range (0,2pi)");
+        }        
+    }
+    
     public List<GHPoint> getPoints()
     {
         return points;

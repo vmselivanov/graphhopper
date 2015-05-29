@@ -29,6 +29,7 @@ public class FastestStopoverDelayWeighting extends FastestWeighting
         if (speed == 0)
             return Double.POSITIVE_INFINITY;
         double delay = encoder.isBool(edge.getFlags(), CarStopoverFlagEncoder.K_STOPOVERTURN)? stopoverTurnDelay :0;
+        //double delay = edge.getDelay(encoder, prevOrNextEdgeId, reverse);
         return (edge.getDistance() / speed * SPEED_CONV) + delay;
     }
 

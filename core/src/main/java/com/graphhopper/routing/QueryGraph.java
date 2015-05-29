@@ -17,8 +17,7 @@
  */
 package com.graphhopper.routing;
 
-import com.graphhopper.routing.util.AllEdgesIterator;
-import com.graphhopper.routing.util.EdgeFilter;
+import com.graphhopper.routing.util.*;
 import com.graphhopper.storage.*;
 import com.graphhopper.storage.index.QueryResult;
 import com.graphhopper.util.*;
@@ -33,10 +32,7 @@ import gnu.trove.procedure.TIntProcedure;
 import gnu.trove.procedure.TObjectProcedure;
 import gnu.trove.set.hash.TIntHashSet;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
+import java.util.*;
 
 /**
  * A class which is used to query the underlying graph with real GPS points. It does so by
@@ -60,11 +56,14 @@ public class QueryGraph implements Graph
      */
     private List<EdgeIteratorState> virtualEdges;
     private final static int VE_BASE = 0, VE_BASE_REV = 1, VE_ADJ = 2, VE_ADJ_REV = 3;
-
+    
     /**
      * Store lat,lon of virtual tower nodes.
      */
     private PointList virtualNodes;
+    private List<Integer> queryPoints2virtualNodeId = new ArrayList<Integer>(5);
+    private static final AngleCalc ac = new AngleCalc();
+
 
     public QueryGraph( Graph graph )
     {
@@ -131,11 +130,10 @@ public class QueryGraph implements Graph
         for (QueryResult res : resList)
         {
             // Do not create virtual node for a query result if it is directly on a tower node or not found
-            EdgeIteratorState closestEdge = res.getClosestEdge();
-
             if (res.getSnappedPosition() == QueryResult.Position.TOWER)
                 continue;
-
+            
+            EdgeIteratorState closestEdge = res.getClosestEdge();
             if (closestEdge == null)
                 throw new IllegalStateException("Do not call QueryGraph.lookup with invalid QueryResult " + res);
 
@@ -355,6 +353,70 @@ public class QueryGraph implements Graph
         virtualEdges.add(baseEdge);
         virtualEdges.add(baseReverseEdge);
     }
+
+    /**
+     * penalize edges which require at least a turn of 100° from preferredDirectionAz
+     * @param preferredDirectionAz north based Azimuth
+     * @param incoming if true, incoming edges are penalized, else outgoing edges
+     */
+    public void enforceDirection(Double preferredDirectionAz, QueryResult queryResult, boolean incoming, FlagEncoder encoder)
+    {
+        double preferredDirection;
+        if (!isInitialized())
+        {
+            throw new IllegalStateException("QueryGraph.lookup has to be called in before");
+        }
+        if (Double.isNaN(preferredDirectionAz))
+        {
+            return;
+        } else
+        {
+            preferredDirection = ac.convertAzimuth2xaxisAngle(preferredDirectionAz);
+        }
+        
+        int virtNodeIDintern = queryResult.getClosestNode() - mainNodes;
+        
+        // either penalize incoming or outgoing edges
+        List<Integer> edgePointers = incoming? Arrays.asList(VE_BASE, VE_ADJ_REV) : Arrays.asList(VE_BASE_REV, VE_ADJ);
+        for (int edgePointer : edgePointers)
+        {
+            VirtualEdgeIState edge = (VirtualEdgeIState) virtualEdges.get(virtNodeIDintern * 4 + edgePointer);
+
+
+            PointList wayGeo = edge.fetchWayGeometry(3);
+            double edgeOrientation = ac.calcOrientation(wayGeo.getLat(0), wayGeo.getLon(0),
+                    wayGeo.getLat(1), wayGeo.getLon(1));
+            System.out.print(edge.getEdge() + " orientation: " + edgeOrientation);
+            edgeOrientation = ac.alignOrientation(preferredDirection, edgeOrientation);
+            double delta = (edgeOrientation - preferredDirection);
+            System.out.println(", delta: " + delta);
+
+            if (Math.abs(delta) > 1.74) // penalize if a turn of more than 100° is necessary
+            {
+                printVirtEdges();
+                edge.setFlags(encoder.setBool(edge.getFlags(), CarStopoverFlagEncoder.K_STOPOVERTURN, true));
+                // also apply to opposite edge for reverse routing
+                // EdgeIteratorState reverseEdge = getEdgeProps(edge.getEdge(), edge.getBaseNode());
+                // reverseEdge.setFlags(encoder.setBool(edge.getFlags(), CarStopoverFlagEncoder.K_STOPOVERTURN, true));
+                printVirtEdges();
+            }
+        }
+    }
+
+    /**
+     * remove all direction enforcements for queryResult
+     */
+    public void dropDirectionEnforcement(QueryResult queryResult, FlagEncoder encoder)
+    {
+        int virtNodeIDintern = queryResult.getClosestNode() - mainNodes;
+        for (int edgePointer : Arrays.asList(VE_BASE, VE_ADJ_REV, VE_ADJ, VE_BASE_REV))
+        {
+            VirtualEdgeIState edge = (VirtualEdgeIState) virtualEdges.get(virtNodeIDintern * 4 + edgePointer);
+            edge.setFlags(encoder.setBool(edge.getFlags(), CarStopoverFlagEncoder.K_STOPOVERTURN, true));
+        }
+        
+    }
+
 
     @Override
     public int getNodes()
@@ -661,5 +723,15 @@ public class QueryGraph implements Graph
     private UnsupportedOperationException exc()
     {
         return new UnsupportedOperationException("QueryGraph cannot be modified.");
+    }
+
+
+    public void printVirtEdges()
+    {
+        System.out.println("------- VirtualEdges ------------");
+        for (EdgeIteratorState eis : virtualEdges)
+        {
+            System.out.println(eis.getEdge() + ": " +eis.getFlags());
+        }
     }
 }

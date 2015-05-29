@@ -120,6 +120,23 @@ public class GHBaseServlet extends HttpServlet
         return new String[0];
     }
 
+    protected List<Double> getDoubleParamList( HttpServletRequest req, String string )
+    {
+        String[] l = req.getParameterMap().get(string);
+        System.out.println("ParameterMap: " + req.getParameterMap());
+        System.out.println("String: " + l);
+        if (l != null && l.length > 0)
+        {
+            ArrayList<Double> doubleList = new ArrayList<Double>(l.length);
+            for (String s : l)
+            {
+                doubleList.add(Double.valueOf(s));
+            }
+            return doubleList;
+        }
+        return Collections.emptyList();
+    }
+
     protected long getLongParam( HttpServletRequest req, String string, long _default )
     {
         try
