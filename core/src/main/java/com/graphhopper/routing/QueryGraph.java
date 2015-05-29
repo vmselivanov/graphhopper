@@ -380,7 +380,7 @@ public class QueryGraph implements Graph
         List<Integer> edgePointers = incoming? Arrays.asList(VE_BASE, VE_ADJ_REV) : Arrays.asList(VE_BASE_REV, VE_ADJ);
         for (int edgePointer : edgePointers)
         {
-            VirtualEdgeIState edge = (VirtualEdgeIState) virtualEdges.get(virtNodeIDintern * 4 + edgePointer);
+            VirtualEdgeIteratorState edge = (VirtualEdgeIteratorState) virtualEdges.get(virtNodeIDintern * 4 + edgePointer);
 
 
             PointList wayGeo = edge.fetchWayGeometry(3);
@@ -411,7 +411,7 @@ public class QueryGraph implements Graph
         int virtNodeIDintern = queryResult.getClosestNode() - mainNodes;
         for (int edgePointer : Arrays.asList(VE_BASE, VE_ADJ_REV, VE_ADJ, VE_BASE_REV))
         {
-            VirtualEdgeIState edge = (VirtualEdgeIState) virtualEdges.get(virtNodeIDintern * 4 + edgePointer);
+            VirtualEdgeIteratorState edge = (VirtualEdgeIteratorState) virtualEdges.get(virtNodeIDintern * 4 + edgePointer);
             edge.setFlags(encoder.setBool(edge.getFlags(), CarStopoverFlagEncoder.K_STOPOVERTURN, true));
         }
         
