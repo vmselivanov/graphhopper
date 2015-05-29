@@ -1,6 +1,8 @@
 package com.graphhopper.routing.util;
 
+import com.graphhopper.util.EdgeIterator;
 import com.graphhopper.util.EdgeIteratorState;
+import com.graphhopper.util.PMap;
 
 /**
  * Created by jan on 27.05.15.
@@ -28,9 +30,14 @@ public class FastestStopoverDelayWeighting extends FastestWeighting
         double speed = reverse ? encoder.getReverseSpeed(edge.getFlags()) : encoder.getSpeed(edge.getFlags());
         if (speed == 0)
             return Double.POSITIVE_INFINITY;
-        double delay = encoder.isBool(edge.getFlags(), CarStopoverFlagEncoder.K_STOPOVERTURN)? stopoverTurnDelay :0;
-        //double delay = edge.getDelay(encoder, prevOrNextEdgeId, reverse);
-        return (edge.getDistance() / speed * SPEED_CONV) + delay;
+        double time = (edge.getDistance() / speed * SPEED_CONV);
+        if (true) //(prevOrNextEdgeId == EdgeIterator.NO_EDGE)
+        {
+            double delay = encoder.isBool(edge.getFlags(), CarStopoverFlagEncoder.K_STOPOVERTURN) ? stopoverTurnDelay : 0;
+            time += delay;
+        }
+        //double delay = edge.getDouble(key, new PMap().put("reverse", reverse) );
+        return time;
     }
 
     @Override

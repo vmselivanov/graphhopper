@@ -985,10 +985,11 @@ public class GraphHopper implements GraphHopperAPI
             
             sw = new StopWatch().start();
 
-            boolean noViaTurn = false;
+            int viaTurnPenalty = request.getHints().getInt("uturnpenalty", 0);
+            System.out.println("ViaPointPenalty: " + viaTurnPenalty);
             // avoid doing a UTurn at via-stops
             int numPaths = paths.size();
-            if (noViaTurn && numPaths>0)
+            if (viaTurnPenalty>0 && numPaths>0)
             {
                 incomingVirtualEdge = paths.get(numPaths-1).getFinalEdge();
                 // as virtual Edges are unidirectional, we have to fetch the opposing edge here
@@ -1012,7 +1013,7 @@ public class GraphHopper implements GraphHopperAPI
             debug += ", " + algo.getName() + "-routing:" + sw.stop().getSeconds() + "s, " + path.getDebugInfo();
             
             // for path extraction reset QueryGraph to original state
-            if (noViaTurn && numPaths>0)
+            if (viaTurnPenalty>0 && numPaths>0)
             {
                 reverseVirtualEdge.setFlags(originalEdgeFlags);
                 incomingVirtualEdge.setFlags(originalEdgeFlags);
