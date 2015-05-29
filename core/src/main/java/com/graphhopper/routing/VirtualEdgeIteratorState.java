@@ -15,10 +15,7 @@
  */
 package com.graphhopper.routing;
 
-import com.graphhopper.util.EdgeIteratorState;
-import com.graphhopper.util.EdgeSkipIterState;
-import com.graphhopper.util.GHUtility;
-import com.graphhopper.util.PointList;
+import com.graphhopper.util.*;
 
 /**
  * Creates an edge state decoupled from a graph where nodes, pointList, etc are kept in memory.
@@ -36,6 +33,10 @@ public class VirtualEdgeIteratorState implements EdgeIteratorState, EdgeSkipIter
     private final int baseNode;
     private final int adjNode;
     private final int originalTraversalKey;
+    // indication if edges are dispreferred as start/stop edge 
+    private boolean dispreferedEdgeReverse;
+    private boolean dispreferedEdge;
+
 
     public VirtualEdgeIteratorState( int originalTraversalKey, int edgeId, int baseNode, int adjNode, double distance, long flags, String name, PointList pointList )
     {
@@ -143,7 +144,40 @@ public class VirtualEdgeIteratorState implements EdgeIteratorState, EdgeSkipIter
         this.name = name;
         return this;
     }
+    
+    @Override
+    public boolean getBoolean(int key, boolean _default, PMap kwargs )
+    {
+        if (key == EdgeIteratorState.DISPREFERED_STARTSTOPEDGE)
+        {
+            if (kwargs.getBool("reverse", false))
+            {
+                return dispreferedEdgeReverse; 
+            } else
+            {
+                return dispreferedEdge;
+            }
+        }
+        // for non-existent keys return default
+        return _default;
+    }
 
+    /**
+     * set edge dispreference for routing from/to start/stop points
+     * @param reverse indicates if forward or backward direction is affected
+     */
+    public void setDispreferedEdge(boolean disprefered, boolean reverse)
+    {
+        if (reverse)
+        {
+            dispreferedEdgeReverse = disprefered;
+        } else
+        {
+            dispreferedEdge = disprefered;
+        }
+        
+    }
+    
     @Override
     public String toString()
     {

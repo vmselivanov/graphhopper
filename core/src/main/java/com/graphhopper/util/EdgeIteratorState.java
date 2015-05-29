@@ -26,6 +26,8 @@ package com.graphhopper.util;
  */
 public interface EdgeIteratorState
 {
+    final static int DISPREFERED_STARTSTOPEDGE = -1;
+    
     /**
      * @return the edge id of the current edge. Do not make any assumptions about the concrete
      * values, except that for an implemention it is recommended that they'll be contiguous.
@@ -83,6 +85,11 @@ public interface EdgeIteratorState
      */
     int getAdditionalField();
 
+    /**
+     * @return additional boolean edge information
+     */
+    boolean getBoolean( int key, boolean _default, PMap kwargs );
+    
     /**
      * Updates the additional field value for this edge
      */

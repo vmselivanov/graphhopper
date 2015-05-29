@@ -1,5 +1,6 @@
 package com.graphhopper.routing.util;
 
+import com.graphhopper.routing.VirtualEdgeIteratorState;
 import com.graphhopper.util.EdgeIterator;
 import com.graphhopper.util.EdgeIteratorState;
 import com.graphhopper.util.PMap;
@@ -11,12 +12,12 @@ public class FastestStopoverDelayWeighting extends FastestWeighting
 
 {
     // additional delay for a turn
-    private final long stopoverTurnDelay;
+    private final long directionPenalty;
 
-    public FastestStopoverDelayWeighting( FlagEncoder encoder, long stopoverTurnDelay )
+    public FastestStopoverDelayWeighting( FlagEncoder encoder, long directionPenalty )
     {
         super(encoder);
-        this.stopoverTurnDelay = stopoverTurnDelay;
+        this.directionPenalty = directionPenalty;
     }
 
     public FastestStopoverDelayWeighting( FlagEncoder encoder )
@@ -30,13 +31,21 @@ public class FastestStopoverDelayWeighting extends FastestWeighting
         double speed = reverse ? encoder.getReverseSpeed(edge.getFlags()) : encoder.getSpeed(edge.getFlags());
         if (speed == 0)
             return Double.POSITIVE_INFINITY;
+        
         double time = (edge.getDistance() / speed * SPEED_CONV);
-        if (true) //(prevOrNextEdgeId == EdgeIterator.NO_EDGE)
+        
+        // add direction penalties at start/stop/via points
+        if (prevOrNextEdgeId == EdgeIterator.NO_EDGE)
         {
-            double delay = encoder.isBool(edge.getFlags(), CarStopoverFlagEncoder.K_STOPOVERTURN) ? stopoverTurnDelay : 0;
-            time += delay;
+            boolean penalizeEdge = edge.getBoolean(EdgeIteratorState.DISPREFERED_STARTSTOPEDGE, false,
+                    new PMap().put("reverse", reverse));
+            System.out.println("Edge " + edge.getEdge() + " " + reverse + "->" + penalizeEdge);
+            if (penalizeEdge)
+            {
+                time += directionPenalty;
+            }
+            //double delay = encoder.isBool(edge.getFlags(), CarStopoverFlagEncoder.K_STOPOVERTURN) ? stopoverTurnDelay : 0;
         }
-        //double delay = edge.getDouble(key, new PMap().put("reverse", reverse) );
         return time;
     }
 

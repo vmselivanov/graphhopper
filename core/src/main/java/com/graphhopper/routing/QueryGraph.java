@@ -359,7 +359,7 @@ public class QueryGraph implements Graph
      * @param preferredDirectionAz north based Azimuth
      * @param incoming if true, incoming edges are penalized, else outgoing edges
      */
-    public void enforceDirection(Double preferredDirectionAz, QueryResult queryResult, boolean incoming, FlagEncoder encoder)
+    public void enforceDirection(Double preferredDirectionAz, QueryResult queryResult, boolean incoming)
     {
         double preferredDirection;
         if (!isInitialized())
@@ -377,11 +377,10 @@ public class QueryGraph implements Graph
         int virtNodeIDintern = queryResult.getClosestNode() - mainNodes;
         
         // either penalize incoming or outgoing edges
-        List<Integer> edgePointers = incoming? Arrays.asList(VE_BASE, VE_ADJ_REV) : Arrays.asList(VE_BASE_REV, VE_ADJ);
-        for (int edgePointer : edgePointers)
+        List<Integer> edgePositions = incoming? Arrays.asList(VE_BASE, VE_ADJ_REV) : Arrays.asList(VE_BASE_REV, VE_ADJ);
+        for (int edgePos : edgePositions)
         {
-            VirtualEdgeIteratorState edge = (VirtualEdgeIteratorState) virtualEdges.get(virtNodeIDintern * 4 + edgePointer);
-
+            VirtualEdgeIteratorState edge = (VirtualEdgeIteratorState) virtualEdges.get(virtNodeIDintern * 4 + edgePos);
 
             PointList wayGeo = edge.fetchWayGeometry(3);
             double edgeOrientation = ac.calcOrientation(wayGeo.getLat(0), wayGeo.getLon(0),
@@ -393,12 +392,11 @@ public class QueryGraph implements Graph
 
             if (Math.abs(delta) > 1.74) // penalize if a turn of more than 100° is necessary
             {
-                printVirtEdges();
-                edge.setFlags(encoder.setBool(edge.getFlags(), CarStopoverFlagEncoder.K_STOPOVERTURN, true));
-                // also apply to opposite edge for reverse routing
-                // EdgeIteratorState reverseEdge = getEdgeProps(edge.getEdge(), edge.getBaseNode());
-                // reverseEdge.setFlags(encoder.setBool(edge.getFlags(), CarStopoverFlagEncoder.K_STOPOVERTURN, true));
-                printVirtEdges();
+                edge.setDispreferedEdge(true, false);
+                //also apply to opposite edge for reverse routing
+                VirtualEdgeIteratorState reverseEdge = 
+                        (VirtualEdgeIteratorState) virtualEdges.get(virtNodeIDintern * 4 + getIdOfReverseEdge(edgePos));
+                reverseEdge.setDispreferedEdge(true, true);
             }
         }
     }
@@ -412,7 +410,8 @@ public class QueryGraph implements Graph
         for (int edgePointer : Arrays.asList(VE_BASE, VE_ADJ_REV, VE_ADJ, VE_BASE_REV))
         {
             VirtualEdgeIteratorState edge = (VirtualEdgeIteratorState) virtualEdges.get(virtNodeIDintern * 4 + edgePointer);
-            edge.setFlags(encoder.setBool(edge.getFlags(), CarStopoverFlagEncoder.K_STOPOVERTURN, true));
+            edge.setDispreferedEdge(false, false);
+            edge.setDispreferedEdge(false, true);
         }
         
     }
@@ -537,12 +536,8 @@ public class QueryGraph implements Graph
         {
             return eis;
         }
-        
-        // find reverse edge via convention. see virtualEdges comment above
-        if (edgeId % 2 == 0)
-            edgeId++;
-        else
-            edgeId--;
+        edgeId = getIdOfReverseEdge(edgeId);
+
         EdgeIteratorState eis2 = virtualEdges.get(edgeId);
         if (eis2.getAdjNode() == adjNode)
         {
@@ -551,7 +546,17 @@ public class QueryGraph implements Graph
         throw new IllegalStateException("Edge " + origEdgeId + " not found with adjNode:" + adjNode
                 + ". found edges were:" + eis + ", " + eis2);
     }
-
+    
+    private int getIdOfReverseEdge(int edgeId)
+    {
+        // find reverse edge via convention. see virtualEdges comment above
+        if (edgeId % 2 == 0)
+            edgeId++;
+        else
+            edgeId--;
+        return edgeId;
+    }
+    
     @Override
     public EdgeExplorer createEdgeExplorer( final EdgeFilter edgeFilter )
     {

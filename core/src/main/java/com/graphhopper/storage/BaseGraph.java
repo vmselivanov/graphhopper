@@ -21,10 +21,7 @@ package com.graphhopper.storage;
 import com.graphhopper.routing.util.AllEdgesIterator;
 import com.graphhopper.routing.util.AllEdgesSkipIterator;
 import com.graphhopper.routing.util.EdgeFilter;
-import com.graphhopper.util.EdgeExplorer;
-import com.graphhopper.util.EdgeIteratorState;
-import com.graphhopper.util.EdgeSkipIterator;
-import com.graphhopper.util.PointList;
+import com.graphhopper.util.*;
 import com.graphhopper.util.shapes.BBox;
 
 /**
@@ -173,6 +170,12 @@ class BaseGraph implements Graph
             public EdgeIteratorState setName( String name )
             {
                 return tmpIter.setName(name);
+            }
+
+            @Override
+            public boolean getBoolean(int key, boolean _default, PMap kwargs)
+            {
+                return tmpIter.getBoolean(key, _default, kwargs);
             }
 
             @Override

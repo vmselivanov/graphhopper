@@ -842,7 +842,7 @@ public class GraphHopper implements GraphHopperAPI
                 result = new FastestWeighting(encoder);
         } else if ("fastestStopoverDelay".equalsIgnoreCase(weighting))
         {
-            result = new FastestStopoverDelayWeighting(encoder, weightingMap.getLong("turnDelay", 300));
+            result = new FastestStopoverDelayWeighting(encoder, weightingMap.getLong("directionpenalty", 300));
         } else 
         {
             throw new UnsupportedOperationException("weighting " + weighting + " not supported");
@@ -967,37 +967,32 @@ public class GraphHopper implements GraphHopperAPI
                 algorithm(algoStr).traversalMode(tMode).flagEncoder(encoder).weighting(weighting).
                 build();
 
-        EdgeIteratorState reverseVirtualEdge = null;
-        EdgeIteratorState incomingVirtualEdge = null;
-        Long originalEdgeFlags = null;
-
+        boolean viaTurnPenalty = request.getHints().getBool("straightvia", false);
         for (int placeIndex = 1; placeIndex < points.size(); placeIndex++)
         {
 
             if (placeIndex == 1) // enforce start direction 
             {
-                queryGraph.enforceDirection(request.getPreferredDirection(0),fromQResult, false, encoder);
+                queryGraph.enforceDirection(request.getPreferredDirection(0),fromQResult, false);
             }               
             
             QueryResult toQResult = qResults.get(placeIndex);
             // enforce end direction
-            queryGraph.enforceDirection(request.getPreferredDirection(placeIndex),toQResult, true, encoder);
+            queryGraph.enforceDirection(request.getPreferredDirection(placeIndex),toQResult, true);
             
             sw = new StopWatch().start();
 
-            int viaTurnPenalty = request.getHints().getInt("uturnpenalty", 0);
-            System.out.println("ViaPointPenalty: " + viaTurnPenalty);
             // avoid doing a UTurn at via-stops
             int numPaths = paths.size();
-            if (viaTurnPenalty>0 && numPaths>0)
+            if (viaTurnPenalty && numPaths>0)
             {
-                incomingVirtualEdge = paths.get(numPaths-1).getFinalEdge();
+                VirtualEdgeIteratorState incomingVirtualEdge = (VirtualEdgeIteratorState) paths.get(numPaths-1).getFinalEdge();
                 // as virtual Edges are unidirectional, we have to fetch the opposing edge here
-                reverseVirtualEdge = queryGraph.getEdgeProps(incomingVirtualEdge.getEdge(), incomingVirtualEdge.getBaseNode());
-                originalEdgeFlags = incomingVirtualEdge.getFlags();
+                VirtualEdgeIteratorState reverseVirtualEdge = (VirtualEdgeIteratorState) queryGraph.getEdgeProps(
+                        incomingVirtualEdge.getEdge(), incomingVirtualEdge.getBaseNode());
                 // penalize going back after via turn
-                reverseVirtualEdge.setFlags(encoder.setBool(originalEdgeFlags, CarStopoverFlagEncoder.K_STOPOVERTURN ,true));
-                incomingVirtualEdge.setFlags(encoder.setBool(originalEdgeFlags, CarStopoverFlagEncoder.K_STOPOVERTURN ,true));
+                reverseVirtualEdge.setDispreferedEdge(true, false);
+                incomingVirtualEdge.setDispreferedEdge(true, false);
             }
 
             RoutingAlgorithm algo = tmpAlgoFactory.createAlgo(queryGraph, algoOpts);
@@ -1012,12 +1007,12 @@ public class GraphHopper implements GraphHopperAPI
             paths.add(path);
             debug += ", " + algo.getName() + "-routing:" + sw.stop().getSeconds() + "s, " + path.getDebugInfo();
             
-            // for path extraction reset QueryGraph to original state
+            /*        
+            // reset graph to avoid interference || not necessary
             if (viaTurnPenalty>0 && numPaths>0)
             {
                 reverseVirtualEdge.setFlags(originalEdgeFlags);
                 incomingVirtualEdge.setFlags(originalEdgeFlags);
-
             }
 
             // remove the start direction enforcement
@@ -1029,7 +1024,7 @@ public class GraphHopper implements GraphHopperAPI
             if (!Double.isNaN(request.getPreferredDirection(placeIndex)))
             {
                 queryGraph.dropDirectionEnforcement(toQResult, encoder);
-            }
+            }*/
 
             visitedSum.addAndGet(algo.getVisitedNodes());
             fromQResult = toQResult;       
