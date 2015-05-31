@@ -28,12 +28,10 @@ public class FastestStopoverDelayWeighting extends FastestWeighting
     @Override
     public double calcWeight( EdgeIteratorState edge, boolean reverse, int prevOrNextEdgeId )
     {
-        double speed = super.calcWeight(edge, reverse, prevOrNextEdgeId);
-        if (Double.isInfinite(speed))
+        double time = super.calcWeight(edge, reverse, prevOrNextEdgeId);
+        if (Double.isInfinite(time))
             return Double.POSITIVE_INFINITY;
-        
-        double time = (edge.getDistance() / speed * SPEED_CONV);
-        
+
         // add direction penalties at start/stop/via points
         boolean penalizeEdge = edge.getBoolean(EdgeIteratorState.DISPREFERED_STARTSTOPEDGE, false,
                     new PMap().put("reverse", reverse));
@@ -41,7 +39,6 @@ public class FastestStopoverDelayWeighting extends FastestWeighting
         {
             time += directionPenalty;
         }
-
         return time;
     }
 

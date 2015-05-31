@@ -141,10 +141,7 @@ public class EncodingManager
             AbstractFlagEncoder fe;
             if (entry.equals(CAR))
                 fe = new CarFlagEncoder(configuration);
-            
-            else if (entry.equals(CARSTOPOVER))
-                fe = new CarStopoverFlagEncoder(configuration);
-                
+
             else if (entry.equals(BIKE))
                 fe = new BikeFlagEncoder(configuration);
 

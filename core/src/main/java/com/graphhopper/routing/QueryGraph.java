@@ -391,6 +391,8 @@ public class QueryGraph implements Graph
             edgeOrientation = ac.alignOrientation(preferredDirection, edgeOrientation);
             double delta = (edgeOrientation - preferredDirection);
 
+            System.out.println("preferred direction: " + preferredDirection);
+            System.out.println("edge " + edge.getEdge() + " orientation: " + edgeOrientation + " delta: " + delta);
             if (Math.abs(delta) > 1.74) // penalize if a turn of more than 100° is necessary
             {
                 edge.setDispreferedEdge(true, false);

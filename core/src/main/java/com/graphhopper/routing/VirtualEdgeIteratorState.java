@@ -171,9 +171,12 @@ public class VirtualEdgeIteratorState implements EdgeIteratorState, EdgeSkipIter
         if (reverse)
         {
             dispreferedEdgeReverse = disprefered;
+            System.out.println(this.edgeId + "->" +  this.adjNode + " reverse dis: " + disprefered );
         } else
         {
             dispreferedEdge = disprefered;
+            System.out.println(this.edgeId + "->" +  this.adjNode + " dis: " + disprefered );
+
         }
         
     }
