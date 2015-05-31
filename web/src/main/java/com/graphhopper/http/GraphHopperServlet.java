@@ -88,6 +88,9 @@ public class GraphHopperServlet extends GHBaseServlet
         } else if (enableElevation && !hopper.hasElevation())
         {
             ghRsp = new GHResponse().addError(new IllegalArgumentException("Elevation not supported!"));
+        } else if (preferredDirections.size()>1 && preferredDirections.size() != infoPoints.size())
+        {
+            ghRsp = new GHResponse().addError(new IllegalArgumentException("#directions must be <=1 or equal #points"));
         } else
         {
             FlagEncoder algoVehicle = hopper.getEncodingManager().getEncoder(vehicleStr);
@@ -96,13 +99,13 @@ public class GraphHopperServlet extends GHBaseServlet
             if (preferredDirections.size()>0) 
             {
                 // if only one preferred directions is specified take as start dir
-                if (preferredDirections.size() ==1) 
+                if (preferredDirections.size() == 1) 
                 {
                     request.setPreferredDirection(preferredDirections.get(0), 0);
                 } else
                 {
                     request.setPreferredDirections(preferredDirections);
-                }            
+                }
             }
 
             initHints(request, httpReq.getParameterMap());

@@ -54,16 +54,14 @@ public class QueryGraph implements Graph
      * Virtual edges are created between existing graph and new virtual tower nodes. For every
      * virtual node there are 4 edges: base-snap, snap-base, snap-adj, adj-snap.
      */
-    private List<EdgeIteratorState> virtualEdges;
+    private List<VirtualEdgeIteratorState> virtualEdges;
     private final static int VE_BASE = 0, VE_BASE_REV = 1, VE_ADJ = 2, VE_ADJ_REV = 3;
     
     /**
      * Store lat,lon of virtual tower nodes.
      */
     private PointList virtualNodes;
-    private List<Integer> queryPoints2virtualNodeId = new ArrayList<Integer>(5);
     private static final AngleCalc ac = new AngleCalc();
-
 
     public QueryGraph( Graph graph )
     {
@@ -116,7 +114,7 @@ public class QueryGraph implements Graph
             throw new IllegalStateException("Call lookup only once. Otherwise you'll have problems for queries sharing the same edge.");
 
         // initialize all none-final variables
-        virtualEdges = new ArrayList<EdgeIteratorState>(resList.size() * 2);
+        virtualEdges = new ArrayList<VirtualEdgeIteratorState>(resList.size() * 2);
         virtualNodes = new PointList(resList.size(), mainNodeAccess.is3D());
         queryResults = new ArrayList<QueryResult>(resList.size());
         baseGraph.virtualEdges = virtualEdges;
@@ -355,7 +353,7 @@ public class QueryGraph implements Graph
     }
 
     /**
-     * penalize edges which require at least a turn of 100° from preferredDirectionAz
+     * set edges disprefered which require at least a turn of 100° from preferredDirectionAz
      * @param preferredDirectionAz north based Azimuth
      * @param incoming if true, incoming edges are penalized, else outgoing edges
      */
@@ -364,7 +362,7 @@ public class QueryGraph implements Graph
         double preferredDirection;
         if (!isInitialized())
         {
-            throw new IllegalStateException("QueryGraph.lookup has to be called in before");
+            throw new IllegalStateException("QueryGraph.lookup has to be called in before direction enforcement");
         }
         if (Double.isNaN(preferredDirectionAz))
         {
@@ -374,31 +372,48 @@ public class QueryGraph implements Graph
             preferredDirection = ac.convertAzimuth2xaxisAngle(preferredDirectionAz);
         }
         
-        int virtNodeIDintern = queryResult.getClosestNode() - mainNodes;
+        int nodeId =  queryResult.getClosestNode();
+        if (!isVirtualNode(nodeId))
+        {
+            throw new IllegalStateException("Direction enforcement should only happen at virtual nodes");
+        }
+        int virtNodeIDintern = nodeId - mainNodes;
         
         // either penalize incoming or outgoing edges
         List<Integer> edgePositions = incoming? Arrays.asList(VE_BASE, VE_ADJ_REV) : Arrays.asList(VE_BASE_REV, VE_ADJ);
         for (int edgePos : edgePositions)
         {
-            VirtualEdgeIteratorState edge = (VirtualEdgeIteratorState) virtualEdges.get(virtNodeIDintern * 4 + edgePos);
+            VirtualEdgeIteratorState edge = virtualEdges.get(virtNodeIDintern * 4 + edgePos);
 
             PointList wayGeo = edge.fetchWayGeometry(3);
             double edgeOrientation = ac.calcOrientation(wayGeo.getLat(0), wayGeo.getLon(0),
                     wayGeo.getLat(1), wayGeo.getLon(1));
-            System.out.print(edge.getEdge() + " orientation: " + edgeOrientation);
             edgeOrientation = ac.alignOrientation(preferredDirection, edgeOrientation);
             double delta = (edgeOrientation - preferredDirection);
-            System.out.println(", delta: " + delta);
 
             if (Math.abs(delta) > 1.74) // penalize if a turn of more than 100° is necessary
             {
                 edge.setDispreferedEdge(true, false);
                 //also apply to opposite edge for reverse routing
-                VirtualEdgeIteratorState reverseEdge = 
-                        (VirtualEdgeIteratorState) virtualEdges.get(virtNodeIDintern * 4 + getIdOfReverseEdge(edgePos));
+                VirtualEdgeIteratorState reverseEdge = virtualEdges.get(virtNodeIDintern * 4 + getPosOfReverseEdge(edgePos));
                 reverseEdge.setDispreferedEdge(true, true);
             }
         }
+    }
+
+    /**
+     * set edgeId disprefered (in direction adjNodeId)
+     */
+    public void setDispreferedEdge(int edgeId, int adjNodeId)
+    {
+        if (!isVirtualEdge(edgeId))
+        {
+            throw new IllegalArgumentException("Only virutal edges might be disprefered. " + edgeId + " is not virtual");
+        }
+        VirtualEdgeIteratorState edge = (VirtualEdgeIteratorState) getEdgeProps(edgeId, adjNodeId);
+        VirtualEdgeIteratorState reverseEdge = (VirtualEdgeIteratorState) getEdgeProps(edgeId, edge.getBaseNode());
+        edge.setDispreferedEdge(true, false);
+        reverseEdge.setDispreferedEdge(true, true);
     }
 
     /**
@@ -536,7 +551,7 @@ public class QueryGraph implements Graph
         {
             return eis;
         }
-        edgeId = getIdOfReverseEdge(edgeId);
+        edgeId = getPosOfReverseEdge(edgeId);
 
         EdgeIteratorState eis2 = virtualEdges.get(edgeId);
         if (eis2.getAdjNode() == adjNode)
@@ -547,7 +562,7 @@ public class QueryGraph implements Graph
                 + ". found edges were:" + eis + ", " + eis2);
     }
     
-    private int getIdOfReverseEdge(int edgeId)
+    private int getPosOfReverseEdge( int edgeId )
     {
         // find reverse edge via convention. see virtualEdges comment above
         if (edgeId % 2 == 0)

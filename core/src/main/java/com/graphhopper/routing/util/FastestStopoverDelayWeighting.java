@@ -28,24 +28,20 @@ public class FastestStopoverDelayWeighting extends FastestWeighting
     @Override
     public double calcWeight( EdgeIteratorState edge, boolean reverse, int prevOrNextEdgeId )
     {
-        double speed = reverse ? encoder.getReverseSpeed(edge.getFlags()) : encoder.getSpeed(edge.getFlags());
-        if (speed == 0)
+        double speed = super.calcWeight(edge, reverse, prevOrNextEdgeId);
+        if (Double.isInfinite(speed))
             return Double.POSITIVE_INFINITY;
         
         double time = (edge.getDistance() / speed * SPEED_CONV);
         
         // add direction penalties at start/stop/via points
-        if (prevOrNextEdgeId == EdgeIterator.NO_EDGE)
-        {
-            boolean penalizeEdge = edge.getBoolean(EdgeIteratorState.DISPREFERED_STARTSTOPEDGE, false,
+        boolean penalizeEdge = edge.getBoolean(EdgeIteratorState.DISPREFERED_STARTSTOPEDGE, false,
                     new PMap().put("reverse", reverse));
-            System.out.println("Edge " + edge.getEdge() + " " + reverse + "->" + penalizeEdge);
-            if (penalizeEdge)
-            {
-                time += directionPenalty;
-            }
-            //double delay = encoder.isBool(edge.getFlags(), CarStopoverFlagEncoder.K_STOPOVERTURN) ? stopoverTurnDelay : 0;
+        if (penalizeEdge)
+        {
+            time += directionPenalty;
         }
+
         return time;
     }
 

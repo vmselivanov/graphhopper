@@ -158,16 +158,16 @@ public class GHRequest
     /**
      * @return if there exist a preferred direction for any start/via/end point
      */
-    public boolean hasPreferredDirection()
+    public boolean hasPreferredDirection(int i)
     {
-        return !Double.isNaN(Collections.min(preferredDirections));        
+        return !Double.isNaN(preferredDirections.get(i));
     }
-    
+
     // validate Azimuth entry
     private void validateAzimuthValue( Double direction )
     {
         // direction must be in (0, 2Pi) oder Nan
-        if (!Double.isNaN(direction) && 
+        if (!Double.isNaN(direction) &&
                 (Double.compare(direction,(2* Math.PI)) > 0) 
                 || (Double.compare(direction, 0) < 0))
         {
