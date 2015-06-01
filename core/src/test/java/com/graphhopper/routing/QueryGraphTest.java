@@ -594,7 +594,7 @@ public class QueryGraphTest
         QueryGraph queryGraph = new QueryGraph(g);
         queryGraph.lookup(Arrays.asList(qr));
         
-        // enforce going north
+        // enforce going out north
         queryGraph.enforceDirection(0., qr, false);
         // test penalized south
         boolean expect = true;
@@ -608,8 +608,8 @@ public class QueryGraphTest
         assertEquals(expect, getEdgePreference(queryGraph, QueryGraph.VE_BASE_REV, false, expect));
         assertEquals(expect, getEdgePreference(queryGraph, QueryGraph.VE_BASE, true, expect));
         
-        // enforce coming north
-        queryGraph.enforceDirection(0., qr, true);
+        // enforce coming in north
+        queryGraph.enforceDirection(3.14, qr, true);
         // test penalized south
         expect = true;
         assertEquals(expect, getEdgePreference(queryGraph, QueryGraph.VE_BASE_REV, true, expect));
@@ -632,8 +632,8 @@ public class QueryGraphTest
         // clear enforcement
         queryGraph.dropDirectionEnforcement(qr);
         
-        // enforce coming north
-        queryGraph.enforceDirection(0., qr, true);
+        // enforce coming in north
+        queryGraph.enforceDirection(3.14, qr, true);
         // test penalized south
         expect = true;
         assertEquals(expect, getEdgePreference(queryGraph, QueryGraph.VE_ADJ, true, expect));

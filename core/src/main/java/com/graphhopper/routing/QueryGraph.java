@@ -390,8 +390,8 @@ public class QueryGraph implements Graph
             if (incoming)
             {
                 int numWayPoints = wayGeo.getSize();
-                edgeOrientation = ac.calcOrientation(wayGeo.getLat(numWayPoints-1), wayGeo.getLon(numWayPoints-1),
-                        wayGeo.getLat(numWayPoints-2), wayGeo.getLon(numWayPoints-2));
+                edgeOrientation = ac.calcOrientation(wayGeo.getLat(numWayPoints-2), wayGeo.getLon(numWayPoints-2),
+                        wayGeo.getLat(numWayPoints-1), wayGeo.getLon(numWayPoints-1));
             } else
             {
                 edgeOrientation =ac.calcOrientation(wayGeo.getLat(0), wayGeo.getLon(0),
