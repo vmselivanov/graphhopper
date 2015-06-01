@@ -932,41 +932,6 @@ public class GraphHopper implements GraphHopperAPI
             {
                 rsp.addError(new IllegalArgumentException("Cannot find point " + placeIndex + ": " + point));
             }
-            // if there is a preferred start direction check if the found edge supports this direction
-            // else redo search, excluding the previously found edge
-            else if (placeIndex == 0 && request.hasPreferredDirection(0))
-            {
-                EdgeIteratorState foundEdge = res.getClosestEdge();
-                long flags = foundEdge.getFlags();
-                double preferredDirection = ac.convertAzimuth2xaxisAngle(request.getPreferredDirection(0));
-                //we first check if edge is not bidirectional, than there are no restrictions of start position
-                if (!encoder.isForward(flags) || !encoder.isBackward(flags))
-                {
-                    GHPoint snappedPoint = res.getSnappedPoint();
-                    // find nextPoint in edge direction  
-                    int nextPoint = encoder.isForward(flags)? res.getWayIndex()+1 : res.getWayIndex();
-                    PointList wayGeo = res.getClosestEdge().fetchWayGeometry(3);
-                    // calculate angle between preferred direction and edge tangent
-                    double edgeOrientation = ac.calcOrientation(snappedPoint.getLat(), snappedPoint.getLon(),
-                            wayGeo.getLat(nextPoint), wayGeo.getLon(nextPoint));
-                    edgeOrientation = ac.alignOrientation(preferredDirection, edgeOrientation);
-                    double delta = (edgeOrientation - preferredDirection);
-                    // do not accept edge if a turn of more than 100° is necessary
-                    if (Math.abs(delta) > 1.74)
-                    {
-                        // search again, but exclude previous found edge 
-                        EdgeFilter excludeEdgeFilter = 
-                                 new ExcludeIdEdgeFilter(edgeFilter, Arrays.asList(foundEdge.getEdge()));
-                        res = locationIndex.findClosest(point.lat, point.lon, excludeEdgeFilter);
-                        if (!res.isValid())
-                        {
-                            rsp.addError(new IllegalArgumentException("Cannot find point " + placeIndex + ": " + point +
-                                    " with direction: " + request.getPreferredDirection(0)));
-                        }                        
-                    }                    
-                }
-            }
-            
             qResults.add(res);
         }
 

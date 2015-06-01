@@ -126,8 +126,6 @@ public class GHBaseServlet extends HttpServlet
     protected List<Double> getDoubleParamList( HttpServletRequest req, String string )
     {
         String[] l = req.getParameterMap().get(string);
-        System.out.println("ParameterMap: " + req.getParameterMap());
-        System.out.println("String: " + l);
         if (l != null && l.length > 0)
         {
             ArrayList<Double> doubleList = new ArrayList<Double>(l.length);
