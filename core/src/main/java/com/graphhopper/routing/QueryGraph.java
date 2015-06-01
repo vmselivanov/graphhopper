@@ -54,8 +54,8 @@ public class QueryGraph implements Graph
      * Virtual edges are created between existing graph and new virtual tower nodes. For every
      * virtual node there are 4 edges: base-snap, snap-base, snap-adj, adj-snap.
      */
-    private List<VirtualEdgeIteratorState> virtualEdges;
-    private final static int VE_BASE = 0, VE_BASE_REV = 1, VE_ADJ = 2, VE_ADJ_REV = 3;
+    List<VirtualEdgeIteratorState> virtualEdges;
+    final static int VE_BASE = 0, VE_BASE_REV = 1, VE_ADJ = 2, VE_ADJ_REV = 3;
     
     /**
      * Store lat,lon of virtual tower nodes.
@@ -386,13 +386,21 @@ public class QueryGraph implements Graph
             VirtualEdgeIteratorState edge = virtualEdges.get(virtNodeIDintern * 4 + edgePos);
 
             PointList wayGeo = edge.fetchWayGeometry(3);
-            double edgeOrientation = ac.calcOrientation(wayGeo.getLat(0), wayGeo.getLon(0),
+            double edgeOrientation;
+            if (incoming)
+            {
+                int numWayPoints = wayGeo.getSize();
+                edgeOrientation = ac.calcOrientation(wayGeo.getLat(numWayPoints-1), wayGeo.getLon(numWayPoints-1),
+                        wayGeo.getLat(numWayPoints-2), wayGeo.getLon(numWayPoints-2));
+            } else
+            {
+                edgeOrientation =ac.calcOrientation(wayGeo.getLat(0), wayGeo.getLon(0),
                     wayGeo.getLat(1), wayGeo.getLon(1));
+            }
+            
             edgeOrientation = ac.alignOrientation(preferredDirection, edgeOrientation);
             double delta = (edgeOrientation - preferredDirection);
 
-            System.out.println("preferred direction: " + preferredDirection);
-            System.out.println("edge " + edge.getEdge() + " orientation: " + edgeOrientation + " delta: " + delta);
             if (Math.abs(delta) > 1.74) // penalize if a turn of more than 100° is necessary
             {
                 edge.setDispreferedEdge(true, false);
@@ -421,7 +429,7 @@ public class QueryGraph implements Graph
     /**
      * remove all direction enforcements for queryResult
      */
-    public void dropDirectionEnforcement(QueryResult queryResult, FlagEncoder encoder)
+    public void dropDirectionEnforcement(QueryResult queryResult)
     {
         int virtNodeIDintern = queryResult.getClosestNode() - mainNodes;
         for (int edgePointer : Arrays.asList(VE_BASE, VE_ADJ_REV, VE_ADJ, VE_BASE_REV))
@@ -745,15 +753,5 @@ public class QueryGraph implements Graph
     private UnsupportedOperationException exc()
     {
         return new UnsupportedOperationException("QueryGraph cannot be modified.");
-    }
-
-
-    public void printVirtEdges()
-    {
-        System.out.println("------- VirtualEdges ------------");
-        for (EdgeIteratorState eis : virtualEdges)
-        {
-            System.out.println(eis.getEdge() + ": " +eis.getFlags());
-        }
     }
 }

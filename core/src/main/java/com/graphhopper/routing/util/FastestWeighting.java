@@ -18,6 +18,7 @@
 package com.graphhopper.routing.util;
 
 import com.graphhopper.util.EdgeIteratorState;
+import com.graphhopper.util.PMap;
 
 /**
  * Calculates the fastest route with the specified vehicle (VehicleEncoder). Calculates the weight
@@ -32,15 +33,23 @@ public class FastestWeighting implements Weighting
      * costs or traffic light costs etc)
      */
     protected final static double SPEED_CONV = 3.6;
+    private final static double DEFAULT_DIRECTION_PENALTY = 300; //[s]
     protected final FlagEncoder encoder;
     private final double maxSpeed;
+    private final PMap pMap;
 
-    public FastestWeighting( FlagEncoder encoder )
+    public FastestWeighting( FlagEncoder encoder, PMap pMap )
     {
         this.encoder = encoder;
+        this.pMap = pMap;
         maxSpeed = encoder.getMaxSpeed() / SPEED_CONV;
     }
 
+    public FastestWeighting( FlagEncoder encoder )
+    {
+        this(encoder, new PMap(0));
+    }
+    
     @Override
     public double getMinWeight( double distance )
     {
@@ -53,7 +62,17 @@ public class FastestWeighting implements Weighting
         double speed = reverse ? encoder.getReverseSpeed(edge.getFlags()) : encoder.getSpeed(edge.getFlags());
         if (speed == 0)
             return Double.POSITIVE_INFINITY;
-        return edge.getDistance() / speed * SPEED_CONV;
+        double time =  edge.getDistance() / speed * SPEED_CONV;
+
+        // add direction penalties at start/stop/via points
+        boolean penalizeEdge = edge.getBoolean(EdgeIteratorState.DISPREFERED_STARTSTOPEDGE, false,
+                new PMap().put("reverse", reverse));
+        if (penalizeEdge)
+        {
+            time += pMap.getDouble("directionpenalty", DEFAULT_DIRECTION_PENALTY);
+        }
+        
+        return time;
     }
 
     @Override

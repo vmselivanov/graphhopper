@@ -65,6 +65,7 @@ public class GraphHopperServlet extends GHBaseServlet
     public void doGet( HttpServletRequest httpReq, HttpServletResponse httpRes ) throws ServletException, IOException
     {
         List<GHPoint> infoPoints = getPoints(httpReq, "point");
+        GHResponse ghRsp = new GHResponse();
 
         // we can reduce the path length based on the maximum differences to the original coordinates
         double minPathPrecision = getDoubleParam(httpReq, "way_point_max_distance", 1d);
@@ -78,19 +79,26 @@ public class GraphHopperServlet extends GHBaseServlet
         String weighting = getParam(httpReq, "weighting", "fastest");
         String algoStr = getParam(httpReq, "algorithm", "");
         String localeStr = getParam(httpReq, "locale", "en");
-        List<Double> preferredDirections = getDoubleParamList(httpReq, "direction");
+        List<Double> preferredDirections = Collections.EMPTY_LIST;
+        try
+        {
+           preferredDirections = getDoubleParamList(httpReq, "direction");
+            
+        } catch (java.lang.NumberFormatException e)
+        {
+            ghRsp.addError(e);
+        }
 
         StopWatch sw = new StopWatch().start();
-        GHResponse ghRsp;
         if (!hopper.getEncodingManager().supports(vehicleStr))
         {
-            ghRsp = new GHResponse().addError(new IllegalArgumentException("Vehicle not supported: " + vehicleStr));
+            ghRsp.addError(new IllegalArgumentException("Vehicle not supported: " + vehicleStr));
         } else if (enableElevation && !hopper.hasElevation())
         {
-            ghRsp = new GHResponse().addError(new IllegalArgumentException("Elevation not supported!"));
+            ghRsp.addError(new IllegalArgumentException("Elevation not supported!"));
         } else if (preferredDirections.size()>1 && preferredDirections.size() != infoPoints.size())
         {
-            ghRsp = new GHResponse().addError(new IllegalArgumentException("#directions must be <=1 or equal #points"));
+            ghRsp.addError(new IllegalArgumentException("#directions must be <=1 or equal #points"));
         } else
         {
             FlagEncoder algoVehicle = hopper.getEncodingManager().getEncoder(vehicleStr);
@@ -98,7 +106,7 @@ public class GraphHopperServlet extends GHBaseServlet
             
             if (preferredDirections.size()>0) 
             {
-                // if only one preferred directions is specified take as start dir
+                // if only one preferred directions is specified take as start direction
                 if (preferredDirections.size() == 1) 
                 {
                     request.setPreferredDirection(preferredDirections.get(0), 0);

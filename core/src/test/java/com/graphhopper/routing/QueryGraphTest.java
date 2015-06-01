@@ -17,8 +17,10 @@
  */
 package com.graphhopper.routing;
 
+import com.graphhopper.GHRequest;
 import com.graphhopper.routing.util.*;
 import com.graphhopper.storage.*;
+import com.graphhopper.storage.index.LocationIndexTree;
 import com.graphhopper.storage.index.QueryResult;
 
 import static com.graphhopper.storage.index.QueryResult.Position.*;
@@ -27,7 +29,9 @@ import com.graphhopper.util.*;
 import com.graphhopper.util.shapes.GHPoint;
 import gnu.trove.map.TIntObjectMap;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 import org.junit.After;
 import org.junit.Test;
@@ -74,6 +78,7 @@ public class QueryGraphTest
         g.edge(0, 1, 10, true).setWayGeometry(Helper.createPointList(1.5, 1, 1.5, 1.5));
     }
 
+   
     @Test
     public void testOneVirtualNode()
     {
@@ -546,4 +551,93 @@ public class QueryGraphTest
 
         graphWithTurnCosts.close();
     }
+
+    private void initHorseshoeGraph( Graph g )
+    {
+        // setup graph
+        //   ____
+        //  |    |
+        //  |    |
+        //  0    1
+        NodeAccess na = g.getNodeAccess();
+        na.setNode(0, 0, 0);
+        na.setNode(1, 0, 2);
+        g.edge(0, 1, 10, true).setWayGeometry(Helper.createPointList(2, 0, 2, 2));
+    }
+    
+    private QueryResult fakeEdgeQueryResult(EdgeIteratorState edge, double lat, double lon, int wayIndex)
+    {
+        QueryResult qr = new QueryResult(lat, lon);
+        qr.setClosestEdge(edge);
+        qr.setWayIndex(wayIndex);
+        qr.setSnappedPosition(EDGE);
+        qr.calcSnappedPoint(new DistanceCalc2D());
+        return qr;
+    }
+    
+    private boolean getEdgePreference(QueryGraph queryGraph, int virtualEdgeTypeId, boolean reverse, boolean testTo)
+    {
+        boolean edgeDisprefered = queryGraph.virtualEdges.get(virtualEdgeTypeId).getBoolean(
+                        EdgeIteratorState.DISPREFERED_STARTSTOPEDGE, !testTo, new PMap(1).put("reverse", reverse));
+        return edgeDisprefered;
+    }
+    
+    @Test
+    public void testEnforceDirection()
+    {
+
+        initHorseshoeGraph(g);
+        EdgeIteratorState edge = GHUtility.getEdge(g, 0, 1);
+
+        // query result on first vertical part of way (upward)
+        QueryResult qr = fakeEdgeQueryResult(edge, 1.5, 0, 0);
+        QueryGraph queryGraph = new QueryGraph(g);
+        queryGraph.lookup(Arrays.asList(qr));
+        
+        // enforce going north
+        queryGraph.enforceDirection(0., qr, false);
+        // test penalized south
+        boolean expect = true;
+        assertEquals(expect, getEdgePreference(queryGraph, QueryGraph.VE_BASE_REV, false, expect));
+        assertEquals(expect, getEdgePreference(queryGraph, QueryGraph.VE_BASE, true, expect));
+
+        // clear enforcement
+        queryGraph.dropDirectionEnforcement(qr);
+        // test cleared edges south
+        expect = false;
+        assertEquals(expect, getEdgePreference(queryGraph, QueryGraph.VE_BASE_REV, false, expect));
+        assertEquals(expect, getEdgePreference(queryGraph, QueryGraph.VE_BASE, true, expect));
+        
+        // enforce coming north
+        queryGraph.enforceDirection(0., qr, true);
+        // test penalized south
+        expect = true;
+        assertEquals(expect, getEdgePreference(queryGraph, QueryGraph.VE_BASE_REV, true, expect));
+        assertEquals(expect, getEdgePreference(queryGraph, QueryGraph.VE_BASE, false, expect));        
+        // clear enforcement
+        queryGraph.dropDirectionEnforcement(qr);
+
+        // query result on second vertical part of way (downward)
+        qr = fakeEdgeQueryResult(edge, 1.5, 2, 2);
+        queryGraph = new QueryGraph(g);
+        queryGraph.lookup(Arrays.asList(qr));
+
+        // enforce going north
+        queryGraph.enforceDirection(0., qr, false);
+        // test penalized south
+        expect = true;
+        assertEquals(expect, getEdgePreference(queryGraph, QueryGraph.VE_ADJ, false, expect));
+        assertEquals(expect, getEdgePreference(queryGraph, QueryGraph.VE_ADJ_REV, true, expect));
+
+        // clear enforcement
+        queryGraph.dropDirectionEnforcement(qr);
+        
+        // enforce coming north
+        queryGraph.enforceDirection(0., qr, true);
+        // test penalized south
+        expect = true;
+        assertEquals(expect, getEdgePreference(queryGraph, QueryGraph.VE_ADJ, true, expect));
+        assertEquals(expect, getEdgePreference(queryGraph, QueryGraph.VE_ADJ_REV, false, expect));
+    }
+        
 }

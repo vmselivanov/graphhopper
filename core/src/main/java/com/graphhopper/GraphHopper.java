@@ -837,13 +837,10 @@ public class GraphHopper implements GraphHopperAPI
         } else if ("fastest".equalsIgnoreCase(weighting) || weighting.isEmpty())
         {
             if (encoder.supports(PriorityWeighting.class))
-                result = new PriorityWeighting(encoder);
+                result = new PriorityWeighting(encoder, weightingMap);
             else
-                result = new FastestWeighting(encoder);
-        } else if ("fastestStopoverDelay".equalsIgnoreCase(weighting))
-        {
-            result = new FastestStopoverDelayWeighting(encoder, weightingMap.getLong("directionpenalty", 300));
-        } else 
+                result = new FastestWeighting(encoder, weightingMap);
+        } else
         {
             throw new UnsupportedOperationException("weighting " + weighting + " not supported");
         }
@@ -955,7 +952,6 @@ public class GraphHopper implements GraphHopperAPI
                     edgeOrientation = ac.alignOrientation(preferredDirection, edgeOrientation);
                     double delta = (edgeOrientation - preferredDirection);
                     // do not accept edge if a turn of more than 100° is necessary
-                    System.out.println("Delta: " + delta);
                     if (Math.abs(delta) > 1.74)
                     {
                         // search again, but exclude previous found edge 
@@ -1021,7 +1017,6 @@ public class GraphHopper implements GraphHopperAPI
             if (viaTurnPenalty && placeIndex>1)
             {
                 EdgeIteratorState incomingVirtualEdge = paths.get(placeIndex - 2).getFinalEdge();
-                System.out.println("penalize viaTurn for " + incomingVirtualEdge.getEdge() + " -> " + incomingVirtualEdge.getBaseNode());
                 queryGraph.setDispreferedEdge(incomingVirtualEdge.getEdge(), incomingVirtualEdge.getBaseNode());
             }
 
@@ -1043,12 +1038,12 @@ public class GraphHopper implements GraphHopperAPI
             if ((placeIndex == 1 && request.hasPreferredDirection(0)) ||
                 (viaTurnPenalty && placeIndex>1 && request.hasPreferredDirection(placeIndex)))
             {
-                queryGraph.dropDirectionEnforcement(fromQResult, encoder);
+                queryGraph.dropDirectionEnforcement(fromQResult);
             }
             // remove the end direction enforcement
             if (request.hasPreferredDirection(placeIndex))
             {
-                queryGraph.dropDirectionEnforcement(toQResult, encoder);
+                queryGraph.dropDirectionEnforcement(toQResult);
             }
 
             visitedSum.addAndGet(algo.getVisitedNodes());
